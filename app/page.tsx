@@ -13,15 +13,13 @@ export default function Home() {
     try {
       chunksRef.current = [];
 
-      const stream =
-        await navigator.mediaDevices.getUserMedia({
-          audio: true,
-        });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+      });
 
       streamRef.current = stream;
 
       const recorder = new MediaRecorder(stream);
-
       recorderRef.current = recorder;
 
       recorder.ondataavailable = (event) => {
@@ -31,10 +29,9 @@ export default function Home() {
       };
 
       recorder.start();
-
       setStatus("🎤 Recording...");
     } catch (error) {
-      console.error("Mic Error:", error);
+      console.error("Microphone Error:", error);
       setStatus("❌ Microphone permission denied");
     }
   };
@@ -49,50 +46,36 @@ export default function Home() {
       try {
         setStatus("⏳ Uploading...");
 
-        const blob = new Blob(
-          chunksRef.current,
-          {
-            type: "audio/webm",
-          }
-        );
+        const audioBlob = new Blob(chunksRef.current, {
+          type: "audio/webm",
+        });
 
         const formData = new FormData();
-
-        formData.append(
-          "audio",
-          blob,
-          "voice.webm"
-        );
+        formData.append("audio", audioBlob, "voice.webm");
 
         const response = await fetch(
-          "http://127.0.0.1:5000/upload",
+          `${process.env.NEXT_PUBLIC_API_URL}/upload`,
           {
             method: "POST",
             body: formData,
           }
         );
 
-        if (!response.ok) {
-          throw new Error(
-            `HTTP ${response.status}`
-          );
-        }
+        console.log("Status:", response.status);
 
         const data = await response.json();
+        console.log("Response:", data);
 
-        console.log(data);
+        if (!response.ok) {
+          throw new Error(data.message || "Upload failed");
+        }
 
         setStatus("✅ Upload Successful");
-
-        streamRef.current
-          ?.getTracks()
-          .forEach((track) => track.stop());
       } catch (error) {
-        console.error(
-          "Upload Error:",
-          error
-        );
+        console.error("Upload Error:", error);
         setStatus("❌ Upload Failed");
+      } finally {
+        streamRef.current?.getTracks().forEach((track) => track.stop());
       }
     };
 
@@ -108,22 +91,20 @@ export default function Home() {
       <div className="flex gap-4">
         <button
           onClick={startRecording}
-          className="rounded-lg bg-green-600 px-6 py-3 text-white font-semibold hover:bg-green-700"
+          className="rounded-lg bg-green-600 px-6 py-3 font-semibold text-white hover:bg-green-700"
         >
           Start Recording
         </button>
 
         <button
           onClick={stopRecording}
-          className="rounded-lg bg-red-600 px-6 py-3 text-white font-semibold hover:bg-red-700"
+          className="rounded-lg bg-red-600 px-6 py-3 font-semibold text-white hover:bg-red-700"
         >
           Stop Recording
         </button>
       </div>
 
-      <p className="text-lg text-white">
-        {status}
-      </p>
+      <p className="text-lg text-white">{status}</p>
     </main>
   );
 }
